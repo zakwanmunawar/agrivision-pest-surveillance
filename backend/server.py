@@ -1,4 +1,4 @@
-import json
+﻿import json
 import asyncio
 import io
 import csv
@@ -32,6 +32,20 @@ MQTT_TOPIC = "agritech/pest/alerts"
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static_outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# High-visibility styling configurations
+COLOR_PALETTE = sv.ColorPalette.DEFAULT
+box_annotator = sv.BoxAnnotator(
+    color=COLOR_PALETTE,
+    thickness=4
+)
+label_annotator = sv.LabelAnnotator(
+    color=COLOR_PALETTE,
+    text_scale=0.75,
+    text_thickness=2,
+    text_padding=8,
+    text_position=sv.Position.TOP_LEFT
+)
 
 class ConnectionManager:
     def __init__(self):
@@ -170,9 +184,7 @@ async def analyze_image(file: UploadFile = File(...)):
             }
             await handle_incoming_detection(payload)
 
-    box_annotator = sv.BoxAnnotator(thickness=2)
-    label_annotator = sv.LabelAnnotator(text_scale=0.6)
-    labels = [f"{p['species']} {p['confidence']:.2f}" for p in found_pests]
+    labels = [f"{p['species']} ({p['confidence']:.2f})" for p in found_pests]
     
     annotated = box_annotator.annotate(scene=frame.copy(), detections=detections)
     if labels:
@@ -201,7 +213,6 @@ async def analyze_video(file: UploadFile = File(...)):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
 
-    # Try H.264 codec first for browser compatibility, fallback to avc1 or mp4v
     fourcc_options = ['avc1', 'H264', 'X264', 'mp4v']
     out = None
     for codec in fourcc_options:
@@ -217,9 +228,7 @@ async def analyze_video(file: UploadFile = File(...)):
     if out is None or not out.isOpened():
         out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    tracker = sv.ByteTrack(track_activation_threshold=0.15, lost_track_buffer=60)
-    box_annotator = sv.BoxAnnotator(thickness=2)
-    label_annotator = sv.LabelAnnotator(text_scale=0.5, text_padding=4)
+    tracker = sv.ByteTrack(track_activation_threshold=0.20, lost_track_buffer=45)
 
     tracked_ids = set()
     detected_species = set()
@@ -229,7 +238,7 @@ async def analyze_video(file: UploadFile = File(...)):
         if not ret:
             break
 
-        results = model(frame, device=device, conf=0.12, verbose=False)[0]
+        results = model(frame, device=device, conf=0.18, verbose=False)[0]
         detections = sv.Detections.from_ultralytics(results)
         detections = tracker.update_with_detections(detections)
 
@@ -237,7 +246,7 @@ async def analyze_video(file: UploadFile = File(...)):
         if detections.tracker_id is not None and len(detections.tracker_id) > 0:
             for class_id, tracker_id, conf in zip(detections.class_id, detections.tracker_id, detections.confidence):
                 class_name = model.names[class_id]
-                labels.append(f"#{tracker_id} {class_name} ({conf:.2f})")
+                labels.append(f"#{tracker_id} {class_name.upper()} | {conf:.2f}")
                 detected_species.add(class_name)
 
                 if tracker_id not in tracked_ids:
