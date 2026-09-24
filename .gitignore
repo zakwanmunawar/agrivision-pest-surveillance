@@ -1,0 +1,30 @@
+﻿# Virtual Environment
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+.env.local
+
+# Large Datasets & Heavy Video Files
+Insects-1/
+*.mp4
+*.avi
+*.mov
+static_outputs/
+backend/static_outputs/
+runs/detect/train*/
+runs/detect/pest_run_optimized/weights/last.pt
+
+# SQLite Database (fresh on every install)
+backend/pest_surveillance.db
+pest_surveillance.db
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
